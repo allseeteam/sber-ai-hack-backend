@@ -1,7 +1,7 @@
 import asyncio
 import base64
 from rich import print
-from sourcebot_client import SourcebotClient, SourcebotApiError
+from .sourcebot.sourcebot_client import SourcebotClient, SourcebotApiError
 
 async def test_version(client: SourcebotClient) -> None:
     """Test the version endpoint"""
