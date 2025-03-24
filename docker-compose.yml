@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - .:/app
+    environment:
+      - ENVIRONMENT=development
+
+  sourcebot:
+    image: ghcr.io/sourcebot-dev/sourcebot:latest
+    ports:
+      - "3000:3000"  # Expose web interface
+    volumes:
+      - ./sourcebot-config.json:/data/config.json  # Mount config file
+      - sourcebot-data:/data/.sourcebot  # Persist indexed data
+    environment:
+      - CONFIG_PATH=/data/config.json
+      - SOURCEBOT_TELEMETRY_DISABLED=1  # Disable telemetry
+
+volumes:
+  sourcebot-data:  # Named volume for persistent storage

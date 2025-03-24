@@ -1,0 +1,13 @@
+{
+    "$schema": "https://raw.githubusercontent.com/sourcebot-dev/sourcebot/main/schemas/v2/index.json",
+    "repos": [
+        {
+            "type": "github",
+            "repos": [
+                "fastapi/fastapi",
+                "pytorch/pytorch",
+                "huggingface/transformers"
+            ]
+        }
+    ]
+}
