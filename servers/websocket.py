@@ -1,6 +1,7 @@
 import argparse
 import asyncio
 import json
+import time
 import websockets
 
 from pydantic_core import ValidationError
@@ -40,6 +41,7 @@ async def conversation(websocket):
                     message.pretty_print()
                     print("\n")
 
+                time.sleep(4)
                 await websocket.send(
                     json.dumps(
                         {
