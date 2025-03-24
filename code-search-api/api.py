@@ -94,6 +94,17 @@ async def process_repositories():
     global indexing_status
     
     try:
+        # Wait for embedder to be ready (no timeout)
+        indexing_status["status"] = "waiting_for_embedder"
+        while True:
+            try:
+                if await check_embedder_available():
+                    logger.info("Embedder service is available")
+                    break
+            except Exception as e:
+                logger.info("Waiting for embedder service...")
+            await asyncio.sleep(5)
+
         indexing_status["status"] = "indexing"
         
         # Load config
@@ -229,20 +240,6 @@ async def check_embedder_available() -> bool:
     except Exception:
         return False
 
-async def wait_for_embedder(timeout: int = 300, check_interval: int = 5):
-    """Wait for embedder to become available with timeout"""
-    start_time = time.time()
-    while True:
-        if await check_embedder_available():
-            logger.info("Embedder service is available")
-            return True
-        
-        if time.time() - start_time > timeout:
-            raise Exception(f"Embedder service not available after {timeout} seconds")
-            
-        await asyncio.sleep(check_interval)
-        logger.info("Waiting for embedder service...")
-
 @app.on_event("startup")
 async def startup():
     # Initialize collection
@@ -326,7 +323,11 @@ async def get_status():
     """Get system status including all components"""
     
     # Check embedder
-    embedder_status = ServiceStatus(status="ready" if await check_embedder_available() else "not_ready")
+    is_embedder_ready = await check_embedder_available()
+    embedder_status = ServiceStatus(
+        status="ready" if is_embedder_ready else "starting",
+        error=None if is_embedder_ready else "Waiting for embedder to initialize (this may take a few minutes)"
+    )
     
     # Check Qdrant
     try:
@@ -338,12 +339,14 @@ async def get_status():
     # Check index
     try:
         collection_info = qdrant_client.get_collection(COLLECTION_NAME)
-        # Use global indexing status
+        # Use global indexing status with more detailed states
         index_status = IndexStatus(
             status=indexing_status["status"],
             total_docs=indexing_status["total_docs"] or collection_info.points_count,
             error=indexing_status["error"]
         )
+        if index_status.status == "waiting_for_embedder":
+            index_status.error = "Waiting for embedder service to be ready"
     except Exception as e:
         index_status = IndexStatus(status="error", error=str(e))
     
