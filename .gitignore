@@ -169,3 +169,5 @@ cython_debug/
 
 
 .env
+code-search-api/data
+data
