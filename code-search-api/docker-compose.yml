@@ -1,24 +1,18 @@
-version: '3.8'
-
 services:
   qdrant:
     image: qdrant/qdrant:latest
     ports:
-      - "6333:6333"
-      - "6334:6334"
+      - "6336:6333"  # Changed from 6333
+      - "6337:6334"  # Changed from 6334
     volumes:
-      - qdrant_data:/qdrant/storage
-    networks:
-      - code-search-network
+      - ./data/quadrant:/qdrant/storage
 
   embedder:
     image: vllm/vllm-openai:latest
     ports:
-      - "8001:8000"
+      - "8002:8000"  # Changed from 8001
     volumes:
       - ${HOME}/.cache/huggingface:/root/.cache/huggingface
-    # environment:
-    #   - VLLM_USE_V1=0
     deploy:
       resources:
         reservations:
@@ -27,30 +21,21 @@ services:
               count: all
               capabilities: [gpu]
     command: --model Qodo/Qodo-Embed-1-1.5B --trust-remote-code
-    networks:
-      - code-search-network
 
-  api:
+  code-search-api:
     build:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "8000:8000"
+      - "${CODE_SEARCH_API_PORT:-8003}:8000"  # Changed default from 8000 to 8003
     depends_on:
       - qdrant
       - embedder
     environment:
-      - QDRANT_URL=http://qdrant:6333
-      - EMBEDDER_URL=http://embedder:8000/v1/embeddings
-      - CONFIG_PATH=/app/repos_config.json
+      - PORT=8000
+      - QDRANT_URL=http://qdrant:6333  # Internal port remains the same
+      - EMBEDDER_URL=http://embedder:8000/v1/embeddings  # Internal port remains the same
+      - CONFIG_PATH=/app/config.json
     volumes:
-      - ./repos_config.json:/app/repos_config.json
+      - ./repos_config.json:/app/config.json
       - ./data:/app/data
-    networks:
-      - code-search-network
-
-networks:
-  code-search-network:
-
-volumes:
-  qdrant_data:
