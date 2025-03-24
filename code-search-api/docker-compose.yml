@@ -24,7 +24,7 @@ services:
             - driver: nvidia
               count: all
               capabilities: [gpu]
-    command: --model Salesforce/SFR-Embedding-Code-2B_R
+    command: --model Salesforce/SFR-Embedding-Code-2B_R --trust-remote-code
     networks:
       - code-search-network
 

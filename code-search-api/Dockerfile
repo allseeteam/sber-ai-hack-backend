@@ -18,7 +18,7 @@ COPY repos_config.json .
 COPY entrypoint.sh .
 
 # Make the entrypoint script executable
-RUN chmod +x /entrypoint.sh
+RUN chmod +x /app/entrypoint.sh
 
 # Create directory for repositories
 RUN mkdir -p /app/repos
