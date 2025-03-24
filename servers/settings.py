@@ -1,6 +1,7 @@
-from typing import Optional, Literal
+from typing import Optional
 
-from pydantic_settings import BaseSettings, SettingsConfigDict 
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
 # Read more about pydantic_settings here: https://docs.pydantic.dev/latest/concepts/pydantic_settings/.
 
 
@@ -13,7 +14,10 @@ class LLMSettings(BaseSettings):
         API_KEY (str): The API key for the LLM.
         MODEL (str): The model name for the LLM.
     """
-    model_config = SettingsConfigDict(env_prefix="LLM_", env_file=".env", extra='ignore')
+
+    model_config = SettingsConfigDict(
+        env_prefix="LLM_", env_file=".env", extra="ignore"
+    )
 
     BASE_API: Optional[str] = None
     API_KEY: str
@@ -33,7 +37,10 @@ class CheckpointerSettings(BaseSettings):
         POSTGRES_PASSWORD (str): PostgreSQL password.
         DB_URI (property): Constructed PostgreSQL connection string.
     """
-    model_config = SettingsConfigDict(env_prefix="CHECKPOINTER_", env_file=".env", extra='ignore')
+
+    model_config = SettingsConfigDict(
+        env_prefix="CHECKPOINTER_", env_file=".env", extra="ignore"
+    )
 
     POSTGRES_HOST: str = "localhost"
     POSTGRES_PORT: int = 5432

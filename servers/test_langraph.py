@@ -12,9 +12,9 @@ Setup:
 """
 
 import asyncio
-import os
 
 from .agentic.graph_manager import AsyncGraphManager
+
 
 async def demo_langraph():
     """Demo function to showcase the graph functionality."""
@@ -28,7 +28,9 @@ async def demo_langraph():
                 print(f"\nProcessing query: '{demo_query}'\n")
                 # values mode returns whole state at each step
                 # https://langchain-ai.github.io/langgraph/reference/graphs/#langgraph.graph.graph.CompiledGraph.astream
-                async for event in manager.graph.astream(inputs, config=config, stream_mode="values"):
+                async for event in manager.graph.astream(
+                    inputs, config=config, stream_mode="values"
+                ):
                     messages = event["messages"]
                     message = messages[-1]
                     if isinstance(message, tuple):
@@ -39,9 +41,11 @@ async def demo_langraph():
         except Exception as e:
             print(f"Error during graph execution: {e}")
 
+
 async def main():
     """Main entry point for the script."""
     await demo_langraph()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

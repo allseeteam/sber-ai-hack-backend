@@ -1,5 +1,6 @@
 import asyncio
-from .agentic.demo_graph import demo_graph
+from agentic.demo_graph import demo_graph
+
 
 async def run_demo_graph_and_print_events():
     global demo_graph
@@ -17,6 +18,7 @@ async def run_demo_graph_and_print_events():
         else:
             message.pretty_print()
             print("\n")
+
 
 if __name__ == "__main__":
     asyncio.run(run_demo_graph_and_print_events())

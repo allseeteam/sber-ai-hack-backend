@@ -41,15 +41,26 @@ async def conversation(websocket):
                         message.pretty_print()
                         print("\n")
 
-                    await websocket.send(
-                        json.dumps(
-                            {
-                                "message": message,
-                                "id": user_message_json["id"],
-                            },
-                            ensure_ascii=False,
+                    if True:  # type = message 
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "message": message,
+                                    "id": user_message_json["id"],
+                                },
+                                ensure_ascii=False,
+                            )
                         )
-                    )
+                    else:
+                        await websocket.send(
+                            json.dumps(
+                                {
+                                    "state": "",
+                                    "id": user_message_json["id"],
+                                },
+                                ensure_ascii=False,
+                            )
+                        )  
             except Exception as e:
                 await websocket.send(
                     json.dumps(

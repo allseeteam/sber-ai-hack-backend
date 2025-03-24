@@ -2,12 +2,12 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver, AsyncConnectio
 from langgraph.prebuilt import create_react_agent
 from langgraph.graph.state import CompiledGraph
 
-from ..settings import settings
-from .agents.code_wizard.code_wizard import (
+from settings import settings
+from agentic.agents.code_wizard.code_wizard import (
     code_wizard_tools,
     CODE_WIZARD_SYSTEM_PROMPT,
 )
-from .llm import llm
+from agentic.llm import llm
 
 
 # State manager for langgraph graph

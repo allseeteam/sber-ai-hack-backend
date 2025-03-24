@@ -3,6 +3,7 @@ import json
 import asyncio
 from rich import print
 
+
 async def test_endpoints():
     async with httpx.AsyncClient() as client:
         try:
@@ -24,7 +25,7 @@ async def test_endpoints():
             print("[bold blue]=== Testing Search Endpoint ===[/bold blue]")
             search = await client.post(
                 "http://localhost:3000/api/search",
-                json={"query": "def", "maxMatchDisplayCount": 5}
+                json={"query": "def", "maxMatchDisplayCount": 5},
             )
             print("Status:", search.status_code)
             print("Response keys:", json.dumps(list(search.json().keys()), indent=2))
@@ -32,6 +33,7 @@ async def test_endpoints():
 
         except Exception as e:
             print(f"[bold red]Error:[/bold red] {str(e)}")
+
 
 if __name__ == "__main__":
     asyncio.run(test_endpoints())

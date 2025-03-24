@@ -1,7 +1,6 @@
 from langchain_openai import ChatOpenAI
-import httpx
 
-from ..settings import settings
+from settings import settings
 
 
 # For now, we are using OpenAI's ChatGPT model, but in the future, we need to make model selection more configurable.

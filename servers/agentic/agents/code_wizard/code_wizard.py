@@ -7,9 +7,6 @@ from .tools import (
     exact_search_tool,
     semantic_search_tool,
 )
-from ...llm import llm
-
-
 
 CODE_WIZARD_SYSTEM_PROMPT: str = (
     """
