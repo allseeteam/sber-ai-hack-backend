@@ -2,6 +2,12 @@ from pydantic import BaseModel
 from mcp import types
 
 
+class UserRequest(BaseModel):
+    message: str
+    id: str
+    repositories: list[str]
+
+
 class ProBaseModel(BaseModel):
     @classmethod
     def from_text_content(cls, text_content: types.TextContent):

@@ -1,14 +1,23 @@
 version: '3.8'
 
 services:
-  backend:
+  nginx:
+    container_name: nginx
+    restart: always
+    build:
+      context: .
+      dockerfile: dockerization/nginx/Dockerfile
+    depends_on:
+      - websocket
+    ports:
+      - "80:80"
+      - "443:443"
+
+  websocket:
     build: .
     ports:
-      - "8000:8000"
-    volumes:
-      - .:/app
-    environment:
-      - ENVIRONMENT=development
+      - "8765:8765"
+
 
   sourcebot:
     image: ghcr.io/sourcebot-dev/sourcebot:latest
@@ -35,3 +44,4 @@ services:
 
 volumes:
   sourcebot-data:  # Named volume for persistent storage
+
