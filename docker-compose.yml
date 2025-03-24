@@ -18,6 +18,14 @@ services:
     ports:
       - "8765:8765"
 
+  frontend:
+    build: 
+      context: /share/frontend
+      dockerfile: Dockerfile
+    ports:
+      - "8301:80"
+    restart: unless-stopped
+
 
   sourcebot:
     image: ghcr.io/sourcebot-dev/sourcebot:latest
