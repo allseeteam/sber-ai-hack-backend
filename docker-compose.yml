@@ -21,5 +21,17 @@ services:
       - CONFIG_PATH=/data/config.json
       - SOURCEBOT_TELEMETRY_DISABLED=1  # Disable telemetry
 
+  postgres:
+    image: postgres:17-alpine
+    ports:
+      - "5432:5432"  # Expose Postgres port to match default env settings
+    environment:
+      POSTGRES_DB: ${CHECKPOINTER_POSTGRES_DB}
+      POSTGRES_USER: ${CHECKPOINTER_POSTGRES_USER}
+      POSTGRES_PASSWORD: ${CHECKPOINTER_POSTGRES_PASSWORD}
+    volumes:
+      - ./data/graph-memory:/var/lib/postgresql/data
+    restart: unless-stopped
+
 volumes:
   sourcebot-data:  # Named volume for persistent storage
