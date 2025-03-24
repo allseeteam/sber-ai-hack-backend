@@ -56,7 +56,7 @@ async def test_search(client: SourcebotClient) -> None:
     search_query = "def"  # Looking for Python function definitions
     search_results = await client.search(
         query=search_query,
-        max_match_display_count=5
+        max_match_display_count=10000
     )
     
     print(f"Raw response: {search_results}")  # Debug raw response
@@ -77,16 +77,19 @@ async def test_search(client: SourcebotClient) -> None:
                     print(f"  Location: Line {match['ContentStart']['LineNumber']}, Column {match['ContentStart']['Column']}")
                     print("  ---")
 
-            # Test file source endpoint with the first found file
-            first_file = search_results['Result']['Files'][0]
+            # Test file source endpoint with the first two files
             print("\n[bold blue]Testing file source endpoint...[/bold blue]")
-            source = await client.get_file_source(
-                file_name=first_file['FileName'],
-                repository=first_file['Repository']
-            )
-            print(f"File language: {source['language']}")
-            print("First 200 characters of source:")
-            print(source['source'][:200] + "...\n")
+            for file in search_results['Result']['Files'][:2]:
+                print(f"\n[bold green]File: {file['FileName']}[/bold green]")
+                source = await client.get_file_source(
+                    file_name=file['FileName'],
+                    repository=file['Repository']
+                )
+                print(f"File language: {source['language']}")
+                decoded_source = base64.b64decode(source['source']).decode('utf-8')
+                print("Source content:")
+                print(f"{decoded_source}")
+                print("\n---\n")
 
             # Print search stats
             print("[bold blue]Search Statistics:[/bold blue]")
