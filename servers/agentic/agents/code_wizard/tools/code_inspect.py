@@ -166,6 +166,9 @@ async def inspect_code(repo_url: str, path: str = "") -> str:
 inspect_tool = StructuredTool.from_function(
     coroutine=inspect_code,
     name="InspectCode",
-    description="Inspect code or directory contents in GitHub repositories",
+    description=(
+        "Инспекция кода или содержимого директории в GitHub репозиториях. "
+        "Может находить похожие фрагменты кода на основе описания на естественном языке."
+    ),
     args_schema=InspectQuery,
 )
