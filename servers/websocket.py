@@ -1,64 +1,63 @@
 import argparse
 import asyncio
 import json
-import time
 import websockets
 
 from pydantic_core import ValidationError
 
-from agentic.demo_graph import demo_graph
+from agentic.graph_manager import AsyncGraphManager
 from common.models import UserRequest
 
 
 async def conversation(websocket):
-    async for user_message in websocket:
-        try:
-            print(f"Получено сообщение: {user_message}")
+    async with AsyncGraphManager() as graph_manager:
+        async for user_message in websocket:
             try:
-                UserRequest.model_validate_json(user_message)
-            except ValidationError as e:
+                print(f"Получено сообщение: {user_message}")
+                try:
+                    UserRequest.model_validate_json(user_message)
+                except ValidationError as e:
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "Error": f"Ошибка сериализации json строки: {e}"
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
+                    continue
+
+                user_message_json = json.loads(user_message)
+                config = {"configurable": {"thread_id": user_message_json["id"]}}
+                inputs = {"messages": [("user", user_message)]}
+                async for event in graph_manager.graph.astream(
+                    input=inputs, config=config, stream_mode="values"
+                ):
+                    messages = event["messages"]
+                    message = messages[-1]
+                    if isinstance(message, tuple):
+                        print(message)
+                    else:
+                        message.pretty_print()
+                        print("\n")
+
+                    await websocket.send(
+                        json.dumps(
+                            {
+                                "message": message,
+                                "id": user_message_json["id"],
+                            },
+                            ensure_ascii=False,
+                        )
+                    )
+            except Exception as e:
                 await websocket.send(
                     json.dumps(
                         {
-                            "Error": f"Ошибка сериализации json строки: {e}"
-                        },
-                        ensure_ascii=False,
+                            "Error": str(e)
+                        }
                     )
                 )
-                continue
-
-            user_message_json = json.loads(user_message)
-            config = {"configurable": {"thread_id": user_message_json["id"]}}
-            inputs = {"messages": [("user", user_message)]}
-            async for event in demo_graph.astream(
-                input=inputs, config=config, stream_mode="values"
-            ):
-                messages = event["messages"]
-                message = messages[-1]
-                if isinstance(message, tuple):
-                    print(message)
-                else:
-                    message.pretty_print()
-                    print("\n")
-
-                time.sleep(4)
-                await websocket.send(
-                    json.dumps(
-                        {
-                            "message": "Я умный бот, а ты мешок с костями.",
-                            "id": user_message_json["id"],
-                        },
-                        ensure_ascii=False,
-                    )
-                )
-        except Exception as e:
-            await websocket.send(
-                json.dumps(
-                    {
-                        "Error": str(e)
-                    }
-                )
-            )
 
 
 async def main(host: str, port: int):

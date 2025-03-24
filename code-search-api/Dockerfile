@@ -13,7 +13,6 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 # Copy application files
 COPY api.py .
-COPY repos_config.json .
 
 # Create directories for data
 RUN mkdir -p /app/data/semantic_search/repos && \
