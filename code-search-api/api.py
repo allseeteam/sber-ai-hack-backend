@@ -215,7 +215,7 @@ def ensure_collection_exists():
             qdrant_client.create_collection(
                 collection_name=COLLECTION_NAME,
                 vectors_config=models.VectorParams(
-                    size=768,  # Use the actual vector size from the model
+                    size=1536,  # Update this to match the embedder's output size
                     distance=models.Distance.COSINE
                 )
             )
@@ -230,7 +230,7 @@ async def check_embedder_available() -> bool:
                 EMBEDDER_URL,
                 json={
                     "input": "test",
-                    "model": "Salesforce/SFR-Embedding-Code-2B_R"
+                    "model": "Qodo/Qodo-Embed-1-1.5B"
                 },
                 timeout=5.0
             )
@@ -259,14 +259,14 @@ async def get_embedding(text: str) -> List[float]:
                 EMBEDDER_URL,
                 json={
                     "input": prompt,
-                    "model": "Salesforce/SFR-Embedding-Code-2B_R"
+                    "model": "Qodo/Qodo-Embed-1-1.5B"
                 },
                 timeout=60.0
             )
             
             if response.status_code != 200:
-                logger.error(f"Embedding API error: {response.text}")
-                raise HTTPException(status_code=500, detail="Embedding service error")
+                logger.error(f"Embedding API error: Status={response.status_code}, Response={response.text}")
+                raise HTTPException(status_code=500, detail=f"Embedding service error: {response.text}")
                 
             result = response.json()
             return result["data"][0]["embedding"]
