@@ -1,0 +1,11 @@
+{
+    "$schema": "https://raw.githubusercontent.com/sourcebot-dev/sourcebot/main/schemas/v2/index.json",
+    "repos": [
+        {
+            "type": "github",
+            "repos": [
+                "allseeteam/allsee-info-bot"
+            ]
+        }
+    ]
+}
