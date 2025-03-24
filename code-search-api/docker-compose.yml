@@ -45,6 +45,7 @@ services:
       - CONFIG_PATH=/app/repos_config.json
     volumes:
       - ./repos_config.json:/app/repos_config.json
+      - ./data:/app/data
     networks:
       - code-search-network
 
