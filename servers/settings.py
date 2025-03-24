@@ -54,9 +54,18 @@ class CheckpointerSettings(BaseSettings):
         return f"postgresql://{self.POSTGRES_USER}:{self.POSTGRES_PASSWORD}@{self.POSTGRES_HOST}:{self.POSTGRES_PORT}/{self.POSTGRES_DB}"
 
 
+class CodeSearchSettings(BaseSettings):
+    SEARCH_API_URL: str = "http://localhost:8000"
+    SOURCEBOT_URL: str = "http://localhost:3000"
+
+    model_config = SettingsConfigDict(
+        env_file=".env", extra="ignore"
+    )
+
 class Settings(BaseSettings):
     llm: LLMSettings = LLMSettings()
     checkpointer: CheckpointerSettings = CheckpointerSettings()
+    code_search: CodeSearchSettings = CodeSearchSettings()
 
 
 settings = Settings()

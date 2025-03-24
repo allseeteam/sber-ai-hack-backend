@@ -81,7 +81,7 @@ def extract_code_snippets(repo_path: str, repo_name: str) -> List[Dict[str, Any]
                         "repo": {
                             "name": repo_name,
                             "path": repo_path,
-                            "url": f"https://github.com/{repo_name}"
+                            "url": f"github.com/{repo_name}"
                         }
                     })
             except Exception as e:
@@ -92,6 +92,17 @@ def extract_code_snippets(repo_path: str, repo_name: str) -> List[Dict[str, Any]
 async def process_repositories():
     """Background task to process and index repositories"""
     global indexing_status
+
+    # Check if collection already has data
+    try:
+        collection_info = qdrant_client.get_collection(COLLECTION_NAME)
+        if collection_info.points_count > 0:
+            logger.info(f"Collection already contains {collection_info.points_count} points. Skipping indexing.")
+            indexing_status["status"] = "completed"
+            indexing_status["total_docs"] = collection_info.points_count
+            return
+    except Exception as e:
+        logger.error(f"Error checking collection: {e}")
     
     try:
         # Wait for embedder to be ready (no timeout)
@@ -245,8 +256,21 @@ async def startup():
     # Initialize collection
     ensure_collection_exists()
     
-    # Start background indexing task
+    # Check if collection is already populated
+    try:
+        collection_info = qdrant_client.get_collection(COLLECTION_NAME)
+        if collection_info.points_count > 0:
+            logger.info(f"Collection {COLLECTION_NAME} already contains {collection_info.points_count} points. Skipping indexing.")
+            global indexing_status
+            indexing_status["status"] = "completed"
+            indexing_status["total_docs"] = collection_info.points_count
+            return
+    except Exception as e:
+        logger.error(f"Error checking collection: {e}")
+    
+    # Start background indexing task only if collection is empty
     asyncio.create_task(process_repositories())
+
 
 # Get embeddings from vllm service
 async def get_embedding(text: str) -> List[float]:

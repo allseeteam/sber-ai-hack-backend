@@ -8,25 +8,25 @@ from settings import settings
 from sourcebot.sourcebot_client import SourcebotClient, SourcebotApiError
 
 # Configure API URLs with default values
-SEARCH_API_URL = getattr(settings, "SEARCH_API_URL", "http://localhost:8000")
-SOURCEBOT_URL = getattr(settings, "SOURCEBOT_URL", "http://localhost:3000")
+SEARCH_API_URL = settings.code_search.SEARCH_API_URL
+SOURCEBOT_URL = settings.code_search.SOURCEBOT_URL
 
 
 class ExactSearchQuery(BaseModel):
     """Pydantic model for the exact search query"""
 
-    query: str = Field(description="Query to search in the code")
+    query: str = Field(description="Поисковый запрос для поиска по кодовой базе")
     allowed_repos: Optional[List[str]] = Field(
-        description="List of allowed repositories to search in", default=None
+        description="Список репозиториев, по которым ведется поиск. Пустой список ('[]') будет означать поиск без ограничений.", default=[]
     )
 
 
 class SemanticSearchQuery(BaseModel):
     """Pydantic model for the semantic search query"""
 
-    query: str = Field(description="Query to search in the code")
+    query: str = Field(description="Поисковый запрос для векторного поиска по кодовой базе")
     allowed_repos: Optional[List[str]] = Field(
-        description="List of allowed repositories to search in", default=None
+        description="Список репозиториев, по которым ведется поиск. Пустой список ('[]') будет означать поиск без ограничений.", default=[]
     )
 
 
@@ -227,8 +227,9 @@ semantic_search_tool = StructuredTool.from_function(
     coroutine=semantic_search,
     name="SemanticSearch",
     description=(
-        "Поиск семантического запроса в коде. "
-        "Может находить более эффективные реализации микросервисов."
+"""
+Поиск по смыслу (векторный) по кодовой базе выбанных репозиториев.
+"""
     ),
     args_schema=SemanticSearchQuery,
 )
