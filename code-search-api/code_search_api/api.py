@@ -5,13 +5,13 @@ import logging
 import asyncio
 from typing import List
 
-from .settings import settings
-from .models import (
+from code_search_api.settings import settings
+from code_search_api.models import (
     SearchQuery, SearchResult, SystemStatus,
     ServiceStatus, IndexStatus, Repository,
     CodeSnippet
 )
-from .services import QuadrantService
+from code_search_api.services import QuadrantService
 
 # Setup logging
 logging.basicConfig(level=logging.INFO)

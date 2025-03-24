@@ -11,12 +11,13 @@ RUN apt-get update && \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy application files
-COPY api.py .
+# Copy entire package
+COPY code_search_api /app/code_search_api
+COPY data /app/data
 
 # Create directories for data
 RUN mkdir -p /app/data/semantic_search/repos && \
     chmod -R 777 /app/data
 
-# Run FastAPI application
-CMD ["uvicorn", "api:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run FastAPI application with correct module path
+CMD ["uvicorn", "code_search_api.api:app", "--host", "0.0.0.0", "--port", "8000"]
