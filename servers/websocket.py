@@ -7,6 +7,7 @@ from pydantic_core import ValidationError
 
 from agentic.graph_manager import AsyncGraphManager
 from common.models import UserRequest
+from langchain_core.messages import AIMessage, ToolMessage
 
 
 async def conversation(websocket):
@@ -41,26 +42,49 @@ async def conversation(websocket):
                         message.pretty_print()
                         print("\n")
 
-                    if True:  # type = message 
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "message": message,
-                                    "id": user_message_json["id"],
-                                },
-                                ensure_ascii=False,
+                    # Проверяем тип сообщения
+                    if isinstance(message, AIMessage):
+                        # Проверяем, содержит ли AIMessage вызовы инструментов
+                        if hasattr(message, 'tool_calls') and message.tool_calls:
+                            # У AIMessage есть вызовы инструментов, отправляем состояние
+                            state = ""
+                            for tool_call in message.tool_calls:
+                                tool_name = tool_call.name
+                                if tool_name == "InspectCode":
+                                    state = "проверяю файлы"
+                                    break  # Берем первый инструмент, если их несколько
+                                elif tool_name == "SemanticSearch":
+                                    state = "использую семантический поиск"
+                                    break
+                                elif tool_name == "ExactSearch":
+                                    state = "ищу файлы по индексу"
+                                    break
+                            
+                            # Отправляем сообщение о состоянии
+                            await websocket.send(
+                                json.dumps(
+                                    {
+                                        "state": state,
+                                        "id": user_message_json["id"],
+                                    },
+                                    ensure_ascii=False,
+                                )
                             )
-                        )
+                        else:
+                            # У AIMessage нет вызовов инструментов, отправляем только содержимое сообщения
+                            await websocket.send(
+                                json.dumps(
+                                    {
+                                        "message": message.content,
+                                        "id": user_message_json["id"],
+                                    },
+                                    ensure_ascii=False,
+                                )
+                            )
                     else:
-                        await websocket.send(
-                            json.dumps(
-                                {
-                                    "state": "",
-                                    "id": user_message_json["id"],
-                                },
-                                ensure_ascii=False,
-                            )
-                        )  
+                        # Если сообщение не AIMessage (например, ToolMessage),
+                        # просто игнорируем его или обрабатываем по-другому, если нужно
+                        pass
             except Exception as e:
                 await websocket.send(
                     json.dumps(
