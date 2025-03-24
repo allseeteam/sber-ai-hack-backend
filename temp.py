@@ -1,18 +1,8 @@
-from typing import Optional, Dict, List, Union
 import httpx
 import base64
+import asyncio
+from typing import Union, Dict, List, Optional, Any
 import re
-
-from pydantic import BaseModel, Field
-from langchain_core.tools import StructuredTool
-from langchain_core.runnables.config import RunnableConfig
-
-
-class InspectQuery(BaseModel):
-    """Pydantic model for the code inspection query"""
-    repo_url: str = Field(description="Full GitHub repository URL (e.g., 'https://github.com/owner/repo')")
-    path: str = Field(description="Relative path within the repository (e.g., 'folder/file.txt')", default="")
-
 
 async def get_github_content(repo_url: str, path: str = "") -> Union[str, List[Dict], None]:
     """
@@ -105,67 +95,26 @@ async def get_github_content(repo_url: str, path: str = "") -> Union[str, List[D
         except (httpx.RequestError, ValueError, KeyError) as e:
             return None
 
-
-def format_content_result(content: Union[str, List[Dict], None], repo_url: str, path: str) -> str:
-    """Format the content result into a readable string"""
-    if content is None:
-        return f"Error: Could not fetch content from {repo_url}/{path}"
+# Example usage:
+async def main():
+    # Get file content
+    file_content = await get_github_content(
+        "https://github.com/octokit/octokit.rb", 
+        "README.md"
+    )
+    if file_content:
+        print(f"File content (first 100 chars): {file_content[:100]}...")
     
-    # Handle directory listing
-    if isinstance(content, list):
-        result_parts = [f"Contents of {repo_url}/{path}:"]
-        for item in content:
-            item_type = item.get('type', 'unknown')
-            item_name = item.get('name', 'unnamed')
-            
-            # Add type-specific formatting
-            if item_type == 'file':
-                result_parts.append(f"📄 {item_name}")
-            elif item_type == 'dir':
-                result_parts.append(f"📁 {item_name}/")
-            elif item_type == 'symlink':
-                result_parts.append(f"🔗 {item_name} -> {item.get('target', 'unknown')}")
-            else:
-                result_parts.append(f"❓ {item_name}")
-        
-        return "\n".join(result_parts)
-    
-    # Handle file content
-    if isinstance(content, str):
-        if path.endswith(('.md', '.txt')):
-            # For markdown and text files, return as is
-            return content
-        else:
-            # For code files, add some basic formatting
-            lines = content.split('\n')
-            formatted_lines = [f"{i+1:4d} | {line}" for i, line in enumerate(lines)]
-            return '\n'.join(formatted_lines)
-    
-    return str(content)
+    # Get directory structure
+    dir_structure = await get_github_content(
+        "https://github.com/octokit/octokit.rb", 
+        "lib"
+    )
+    if dir_structure:
+        print(f"Directory has {len(dir_structure)} items")
+        for item in dir_structure[:3]:  # Show first 3 items
+            print(f"- {item.get('name')} ({item.get('type')})")
 
-
-async def inspect_code(repo_url: str, path: str = "") -> str:
-    """
-    A tool for inspecting code in GitHub repositories
-    
-    Args:
-        repo_url: Full GitHub repository URL
-        path: Relative path within the repository
-        
-    Returns:
-        Formatted string containing the inspection results
-    """
-    try:
-        content = await get_github_content(repo_url, path)
-        return format_content_result(content, repo_url, path)
-    except Exception as e:
-        return f"Error inspecting code: {str(e)}"
-
-
-# Creating a structured tool for code inspection
-inspect_tool = StructuredTool.from_function(
-    coroutine=inspect_code,
-    name="InspectCode",
-    description="Inspect code or directory contents in GitHub repositories",
-    args_schema=InspectQuery,
-)
+# Run the example
+if __name__ == "__main__":
+    asyncio.run(main())
