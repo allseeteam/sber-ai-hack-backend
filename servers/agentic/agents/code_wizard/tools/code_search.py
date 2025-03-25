@@ -74,10 +74,10 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]] = None) ->
     """A tool for searching for an exact query in the code using Sourcebot"""
     try:
         async with SourcebotClient(base_url=SOURCEBOT_URL) as client:
-            # Perform the search with up to 10 matches
+            # Perform the search with up to 3 matches
             result = await client.search(
                 query=query,
-                max_match_display_count=10,
+                max_match_display_count=3,
                 whole=True,  # Get complete file contents for better context
             )
 
@@ -159,7 +159,7 @@ async def semantic_search(query: str, allowed_repos: Optional[List[str]] = None)
         async with httpx.AsyncClient(timeout=30.0) as client:
             response = await client.post(
                 f"{SEARCH_API_URL}/search",
-                json={"query": query, "allowed_repos": allowed_repos, "top_n": 10},
+                json={"query": query, "allowed_repos": allowed_repos, "top_n": 3},
             )
 
             if response.status_code != 200:
