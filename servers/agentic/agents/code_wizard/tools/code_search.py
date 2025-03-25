@@ -68,7 +68,9 @@ def format_sourcebot_results(result: Dict[str, Any]) -> str:
     return "\n".join(result_parts)
 
 
-async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
+async def exact_search(query: str, allowed_repos: Optional[List[str]] = None) -> str:
+    # Ensure allowed_repos is always a list
+    allowed_repos = allowed_repos or []
     """A tool for searching for an exact query in the code using Sourcebot"""
     try:
         async with SourcebotClient(base_url=SOURCEBOT_URL) as client:
@@ -149,7 +151,9 @@ def format_search_results(snippets: List[Dict]) -> str:
     return "\n".join(result_parts)
 
 
-async def semantic_search(query: str, allowed_repos: Optional[List[str]]) -> str:
+async def semantic_search(query: str, allowed_repos: Optional[List[str]] = None) -> str:
+    # Ensure allowed_repos is always a list
+    allowed_repos = allowed_repos or []
     """A tool for searching for a semantic query in the code"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
