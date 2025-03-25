@@ -64,7 +64,7 @@ async def test_repos(client: SourcebotClient) -> None:
 async def test_search(client: SourcebotClient) -> None:
     """Test the search endpoint"""
     print("[bold blue]Testing search endpoint...[/bold blue]")
-    search_query = "def"  # Looking for Python function definitions
+    search_query = "tensor"  # Looking for Python function definitions
     search_results = await client.search(
         query=search_query, max_match_display_count=10000
     )

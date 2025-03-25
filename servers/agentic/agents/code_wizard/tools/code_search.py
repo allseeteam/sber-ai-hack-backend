@@ -79,21 +79,47 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
                 whole=True,  # Get complete file contents for better context
             )
 
-            # If allowed_repos is specified, filter the results
-            if allowed_repos:
-                filtered_matches = [
-                    match
-                    for match in result.get("matches", [])
-                    if match["repository"] in allowed_repos
-                ]
-                result["matches"] = filtered_matches
+            import logging
+            logging.info(f"Debug - Raw sourcebot response: {result}")  # Debug log
 
-            return format_sourcebot_results(result)
+            # Convert sourcebot response format to expected format
+            if "Result" in result and "Files" in result["Result"]:
+                converted_result = {
+                    "matches": [
+                        {
+                            "repository": file["Repository"],
+                            "filePath": file["FileName"],
+                            "content": "".join(match["Content"] for match in file.get("ChunkMatches", [])),
+                            "lines": {
+                                "from": min(match["ContentStart"]["LineNumber"] for match in file.get("ChunkMatches", [])),
+                                "to": max(
+                                    max(r["End"]["LineNumber"] for r in match.get("Ranges", []))
+                                    for match in file.get("ChunkMatches", [])
+                                ) if any(file.get("ChunkMatches", [])) else 0
+                            } if file.get("ChunkMatches") else None
+                        }
+                        for file in result["Result"]["Files"]
+                    ]
+                }
+                
+                # If allowed_repos is specified, filter the results
+                if allowed_repos:
+                    filtered_matches = [
+                        match
+                        for match in converted_result.get("matches", [])
+                        if match["repository"] in allowed_repos
+                    ]
+                    converted_result["matches"] = filtered_matches
+
+                return format_sourcebot_results(converted_result)
+            
+            return format_sourcebot_results({"matches": []})  # Return empty result if format doesn't match
 
     except SourcebotApiError as e:
         return f"Error: Sourcebot search failed - {str(e)}"
     except Exception as e:
         return f"Error performing exact search: {str(e)}"
+
 
 
 def format_search_results(snippets: List[Dict]) -> str:

@@ -25,7 +25,7 @@ async def test_endpoints():
             print("[bold blue]=== Testing Search Endpoint ===[/bold blue]")
             search = await client.post(
                 "http://localhost:3000/api/search",
-                json={"query": "def", "maxMatchDisplayCount": 5},
+                json={"query": "tensor", "maxMatchDisplayCount": 5},
             )
             print("Status:", search.status_code)
             print("Response keys:", json.dumps(list(search.json().keys()), indent=2))
