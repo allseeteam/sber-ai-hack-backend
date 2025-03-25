@@ -63,13 +63,13 @@ async def conversation(websocket):
                             for tool_call in message.tool_calls:
                                 tool_name = tool_call["name"]
                                 if tool_name == "InspectCode":
-                                    state = "проверяю файлы"
+                                    state = "Проверяю файлы"
                                     break  # Берем первый инструмент, если их несколько
                                 elif tool_name == "SemanticSearch":
-                                    state = "использую семантический поиск"
+                                    state = "Использую семантический поиск"
                                     break
                                 elif tool_name == "ExactSearch":
-                                    state = "ищу файлы по индексу"
+                                    state = "Ищу файлы по индексу"
                                     break
                             
                             logger.info(f"Sending state: {state} for message ID: {user_message_json['id']}")
