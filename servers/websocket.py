@@ -96,17 +96,18 @@ async def conversation(websocket):
                                 )
                             )
                     elif isinstance(message, ToolMessage):
-                        # Handle ToolMessage and its structured data
+                        # Handle ToolMessage and its artifact data
                         logger.info(f"Processing ToolMessage for message ID: {user_message_json['id']}")
                         
-                        # Get result type from the additional_kwargs
-                        result_type = message.additional_kwargs.get("result_type", "unknown")
+                        # Get data from artifact
+                        artifact = message.artifact if message.artifact else {}
+                        result_type = artifact.get("result_type", "unknown")
                         
                         # Prepare result based on the result type
                         result = None
                         if result_type == "inspect":
-                            watched_type = message.additional_kwargs.get("watched_type")
-                            details = message.additional_kwargs.get("details", {})
+                            watched_type = artifact.get("watched_type")
+                            details = artifact.get("details", {})
                             
                             if watched_type == "directory":
                                 # For directories, return list of files
@@ -115,12 +116,19 @@ async def conversation(websocket):
                                 # For files or errors, return the formatted content
                                 result = message.content
                                 
-                        elif result_type in ["search", "exact_search", "semantic_search"]:
-                            # For search results, return the formatted content
-                            result = message.content
+                        elif result_type == "search":
+                            # For search results, collect matches
+                            matches = artifact.get("matches", [])
+                            if matches:
+                                # Return formatted content for search results
+                                result = message.content
+                            else:
+                                # If no matches or error occurred
+                                result = artifact.get("error", "No matches found")
                         else:
                             # For unknown types, return the raw content
                             result = message.content
+                            logger.warning(f"Unknown result type: {result_type}")
                         
                         response_data = {
                             "id": user_message_json["id"],
@@ -128,6 +136,7 @@ async def conversation(websocket):
                             "result": result
                         }
                         
+                        logger.debug(f"Sending response: {response_data}")
                         await websocket.send(
                             json.dumps(
                                 response_data,

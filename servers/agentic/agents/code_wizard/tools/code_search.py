@@ -1,4 +1,5 @@
 import base64
+import logging
 from typing import Optional, List, Dict, Any, Tuple
 
 from pydantic import BaseModel, Field
@@ -8,6 +9,8 @@ import httpx
 
 from settings import settings
 from sourcebot.sourcebot_client import SourcebotClient, SourcebotApiError
+
+logger = logging.getLogger(__name__)
 
 # Configure API URLs with default values
 SEARCH_API_URL = settings.code_search.SEARCH_API_URL
@@ -144,36 +147,38 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> ToolMe
                     converted_result["matches"] = filtered_matches
 
                 formatted_text, structured_data = format_sourcebot_results(converted_result)
+                artifact_data = {
+                    "result_type": "search",
+                    "matches": structured_data["matches"]
+                }
                 return ToolMessage(
                     content=formatted_text,
-                    additional_kwargs=structured_data,
-                    tool_call_id="",  # Will be set by the framework
-                    name="ExactSearch"
+                    name="ExactSearch",
+                    artifact=artifact_data
                 )
             
             formatted_text, structured_data = format_sourcebot_results({"matches": []})
             return ToolMessage(
                 content=formatted_text,
-                additional_kwargs=structured_data,
-                tool_call_id="",
-                name="ExactSearch"
+                name="ExactSearch",
+                artifact={"result_type": "search", "matches": []}
             )
 
     except SourcebotApiError as e:
         error_msg = f"Error: Sourcebot search failed - {str(e)}"
+        logger.error(error_msg)
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={"error": str(e), "matches": []},
-            tool_call_id="",
-            name="ExactSearch"
+            name="ExactSearch",
+            artifact={"result_type": "search", "error": str(e), "matches": []}
         )
     except Exception as e:
         error_msg = f"Error performing exact search: {str(e)}"
+        logger.error(error_msg)
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={"error": str(e), "matches": []},
-            tool_call_id="",
-            name="ExactSearch"
+            name="ExactSearch",
+            artifact={"result_type": "search", "error": str(e), "matches": []}
         )
 
 
@@ -246,34 +251,36 @@ async def semantic_search(query: str, allowed_repos: Optional[List[str]]) -> Too
             formatted_text, structured_data = format_search_results(result["snippets"])
             return ToolMessage(
                 content=formatted_text,
-                additional_kwargs=structured_data,
-                tool_call_id="",  # Will be set by the framework
-                name="SemanticSearch"
+                name="SemanticSearch",
+                artifact={
+                    "result_type": "search",
+                    "matches": structured_data["matches"]
+                }
             )
 
     except httpx.TimeoutException:
         error_msg = "Error: Search API request timed out. Please try again."
+        logger.error(error_msg)
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={"error": error_msg, "matches": []},
-            tool_call_id="",
-            name="SemanticSearch"
+            name="SemanticSearch",
+            artifact={"result_type": "search", "error": error_msg, "matches": []}
         )
     except httpx.RequestError as e:
         error_msg = f"Error: Could not connect to Search API ({str(e)})"
+        logger.error(error_msg)
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={"error": str(e), "matches": []},
-            tool_call_id="",
-            name="SemanticSearch"
+            name="SemanticSearch",
+            artifact={"result_type": "search", "error": str(e), "matches": []}
         )
     except Exception as e:
         error_msg = f"Error performing semantic search: {str(e)}"
+        logger.error(error_msg)
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={"error": str(e), "matches": []},
-            tool_call_id="",
-            name="SemanticSearch"
+            name="SemanticSearch",
+            artifact={"result_type": "search", "error": str(e), "matches": []}
         )
 
 

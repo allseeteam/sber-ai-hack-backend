@@ -112,7 +112,6 @@ def format_content_result(content: Union[str, List[Dict], None], repo_url: str, 
     if content is None:
         error_msg = f"Error: Could not fetch content from {repo_url}/{path}"
         return error_msg, {
-            "result_type": "inspect",
             "watched_type": None,
             "details": {
                 "path": path,
@@ -147,7 +146,6 @@ def format_content_result(content: Union[str, List[Dict], None], repo_url: str, 
         
         formatted_text = "\n".join(result_parts)
         structured_data = {
-            "result_type": "inspect",
             "watched_type": "directory",
             "details": {
                 "path": path,
@@ -168,7 +166,6 @@ def format_content_result(content: Union[str, List[Dict], None], repo_url: str, 
             formatted_text = '\n'.join(f"{i+1:4d} | {line}" for i, line in enumerate(lines))
         
         structured_data = {
-            "result_type": "inspect",
             "watched_type": "file",
             "details": {
                 "path": path,
@@ -178,8 +175,8 @@ def format_content_result(content: Union[str, List[Dict], None], repo_url: str, 
         }
         return formatted_text, structured_data
     
+    # Handle unknown content type
     return str(content), {
-        "result_type": "inspect",
         "watched_type": None,
         "details": {
             "path": path,
@@ -187,7 +184,6 @@ def format_content_result(content: Union[str, List[Dict], None], repo_url: str, 
             "error": "Unknown content type"
         }
     }
-
 
 async def inspect_code(repo_url: str, path: str = "") -> ToolMessage:
     """
@@ -203,17 +199,24 @@ async def inspect_code(repo_url: str, path: str = "") -> ToolMessage:
     try:
         content = await get_github_content(repo_url, path)
         formatted_text, structured_data = format_content_result(content, repo_url, path)
+
+        # Create artifact data with result_type
+        artifact_data = {
+            "result_type": "inspect",
+            **structured_data  # Include watched_type and details
+        }
+
         return ToolMessage(
             content=formatted_text,
-            additional_kwargs=structured_data,
-            tool_call_id="",  # Will be set by the framework
-            name="InspectCode"
+            name="InspectCode",
+            artifact=artifact_data
         )
     except Exception as e:
         error_msg = f"Error inspecting code: {str(e)}"
         return ToolMessage(
             content=error_msg,
-            additional_kwargs={
+            name="InspectCode",
+            artifact={
                 "result_type": "inspect",
                 "watched_type": None,
                 "details": {
@@ -221,9 +224,7 @@ async def inspect_code(repo_url: str, path: str = "") -> ToolMessage:
                     "url": f"{repo_url}/{path}",
                     "error": str(e)
                 }
-            },
-            tool_call_id="",
-            name="InspectCode"
+            }
         )
 
 
