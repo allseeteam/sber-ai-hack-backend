@@ -1,10 +1,11 @@
-from typing import Optional, Dict, List, Union
+from typing import Optional, Dict, List, Union, Tuple
 import httpx
 import base64
 import re
 
 from pydantic import BaseModel, Field
 from langchain_core.tools import StructuredTool
+from langchain_core.messages import ToolMessage
 from langchain_core.runnables.config import RunnableConfig
 
 
@@ -106,45 +107,89 @@ async def get_github_content(repo_url: str, path: str = "") -> Union[str, List[D
             return None
 
 
-def format_content_result(content: Union[str, List[Dict], None], repo_url: str, path: str) -> str:
-    """Format the content result into a readable string"""
+def format_content_result(content: Union[str, List[Dict], None], repo_url: str, path: str) -> Tuple[str, Dict[str, Any]]:
+    """Format the content result into formatted text and structured data"""
     if content is None:
-        return f"Error: Could not fetch content from {repo_url}/{path}"
+        error_msg = f"Error: Could not fetch content from {repo_url}/{path}"
+        return error_msg, {
+            "result_type": "inspect",
+            "watched_type": None,
+            "details": {
+                "path": path,
+                "url": f"{repo_url}/{path}",
+                "error": "Content not found"
+            }
+        }
     
     # Handle directory listing
     if isinstance(content, list):
         result_parts = [f"Contents of {repo_url}/{path}:"]
+        files = []
+        
         for item in content:
             item_type = item.get('type', 'unknown')
             item_name = item.get('name', 'unnamed')
+            item_url = item.get('html_url', f"{repo_url}/blob/main/{path}/{item_name}")
             
             # Add type-specific formatting
             if item_type == 'file':
                 result_parts.append(f"📄 {item_name}")
+                files.append({"name": item_name, "type": "file", "url": item_url})
             elif item_type == 'dir':
                 result_parts.append(f"📁 {item_name}/")
+                files.append({"name": item_name, "type": "directory", "url": item_url})
             elif item_type == 'symlink':
                 result_parts.append(f"🔗 {item_name} -> {item.get('target', 'unknown')}")
+                files.append({"name": item_name, "type": "symlink", "target": item.get('target'), "url": item_url})
             else:
                 result_parts.append(f"❓ {item_name}")
+                files.append({"name": item_name, "type": "unknown", "url": item_url})
         
-        return "\n".join(result_parts)
+        formatted_text = "\n".join(result_parts)
+        structured_data = {
+            "result_type": "inspect",
+            "watched_type": "directory",
+            "details": {
+                "path": path,
+                "url": f"{repo_url}/{path}",
+                "file_count": len(files),
+                "files": files
+            }
+        }
+        return formatted_text, structured_data
     
     # Handle file content
     if isinstance(content, str):
         if path.endswith(('.md', '.txt')):
-            # For markdown and text files, return as is
-            return content
+            formatted_text = content
         else:
             # For code files, add some basic formatting
             lines = content.split('\n')
-            formatted_lines = [f"{i+1:4d} | {line}" for i, line in enumerate(lines)]
-            return '\n'.join(formatted_lines)
+            formatted_text = '\n'.join(f"{i+1:4d} | {line}" for i, line in enumerate(lines))
+        
+        structured_data = {
+            "result_type": "inspect",
+            "watched_type": "file",
+            "details": {
+                "path": path,
+                "url": f"{repo_url}/blob/main/{path}",
+                "line_count": len(content.split('\n'))
+            }
+        }
+        return formatted_text, structured_data
     
-    return str(content)
+    return str(content), {
+        "result_type": "inspect",
+        "watched_type": None,
+        "details": {
+            "path": path,
+            "url": f"{repo_url}/{path}",
+            "error": "Unknown content type"
+        }
+    }
 
 
-async def inspect_code(repo_url: str, path: str = "") -> str:
+async def inspect_code(repo_url: str, path: str = "") -> ToolMessage:
     """
     A tool for inspecting code in GitHub repositories
     
@@ -153,13 +198,33 @@ async def inspect_code(repo_url: str, path: str = "") -> str:
         path: Relative path within the repository
         
     Returns:
-        Formatted string containing the inspection results
+        ToolMessage containing formatted text and structured data about the inspection
     """
     try:
         content = await get_github_content(repo_url, path)
-        return format_content_result(content, repo_url, path)
+        formatted_text, structured_data = format_content_result(content, repo_url, path)
+        return ToolMessage(
+            content=formatted_text,
+            additional_kwargs=structured_data,
+            tool_call_id="",  # Will be set by the framework
+            name="InspectCode"
+        )
     except Exception as e:
-        return f"Error inspecting code: {str(e)}"
+        error_msg = f"Error inspecting code: {str(e)}"
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={
+                "result_type": "inspect",
+                "watched_type": None,
+                "details": {
+                    "path": path,
+                    "url": f"{repo_url}/{path}",
+                    "error": str(e)
+                }
+            },
+            tool_call_id="",
+            name="InspectCode"
+        )
 
 
 # Creating a structured tool for code inspection

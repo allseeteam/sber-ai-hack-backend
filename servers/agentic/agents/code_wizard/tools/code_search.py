@@ -1,7 +1,9 @@
-from typing import Optional, List, Dict, Any
+import base64
+from typing import Optional, List, Dict, Any, Tuple
 
 from pydantic import BaseModel, Field
 from langchain_core.tools import StructuredTool
+from langchain_core.messages import ToolMessage
 import httpx
 
 from settings import settings
@@ -30,45 +32,76 @@ class SemanticSearchQuery(BaseModel):
     )
 
 
-def format_sourcebot_results(result: Dict[str, Any]) -> str:
-    """Format Sourcebot search results into a readable string"""
+def decode_base64_content(content: str) -> str:
+    """Decode Base64 encoded content, returning original string if not Base64"""
+    try:
+        # Try to decode the content as Base64
+        decoded = base64.b64decode(content.encode('utf-8')).decode('utf-8')
+        return decoded
+    except Exception:
+        # If decoding fails, return the original content
+        return content
+
+
+def format_sourcebot_results(result: Dict[str, Any]) -> Tuple[str, Dict[str, Any]]:
+    """Format Sourcebot search results into formatted text and structured data"""
     if not result or not result.get("matches"):
-        return "No matching code found."
+        return "No matching code found.", {"matches": []}
 
     result_parts = []
+    structured_matches = []
+    
     for match in result["matches"]:
         # Extract repository and file information
         repo = match["repository"]
         file_name = match["filePath"]
+        
+        # Build github_url
+        github_url = None
+        if "/" in repo:
+            github_url = f"https://github.com/{repo}/blob/main/{file_name}"
+            if "lines" in match:
+                github_url += f"#L{match['lines']['from']}-L{match['lines']['to']}"
 
-        # Format the file information
+        # Get and decode content
+        raw_content = match.get("content", "").strip()
+        decoded_content = decode_base64_content(raw_content)
+
+        # Format the code for display
+        formatted_code = "\n".join("    " + line for line in decoded_content.split("\n")) if decoded_content else ""
+
+        # Create structured match data
+        structured_match = {
+            "file": file_name,
+            "repository": repo,
+            "github_url": github_url,
+            "lines": match.get("lines"),
+            "content": decoded_content,
+            "raw_content": raw_content
+        }
+        structured_matches.append(structured_match)
+
+        # Format text representation
         header = f"\nFile: {file_name}"
         if "lines" in match:
             line_start = match["lines"]["from"]
             line_end = match["lines"]["to"]
             header += f" (Lines {line_start}-{line_end})"
-
         header += f"\nRepository: {repo}"
-
-        # Add GitHub link if repository format matches owner/repo
-        if "/" in repo:
-            github_url = f"https://github.com/{repo}/blob/main/{file_name}"
-            if "lines" in match:
-                github_url += f"#L{match['lines']['from']}-L{match['lines']['to']}"
+        if github_url:
             header += f"\nGitHub: {github_url}"
 
-        # Format the code with basic formatting
-        code = match.get("content", "").strip()
-        if code:
-            code = "\n".join("    " + line for line in code.split("\n"))
+        result_parts.append(f"{header}\n\n{formatted_code}\n{'='*80}")
 
-        # Combine all parts
-        result_parts.append(f"{header}\n\n{code}\n{'='*80}")
+    formatted_text = "\n".join(result_parts)
+    structured_data = {
+        "matches": structured_matches
+    }
+    
+    return formatted_text, structured_data
 
-    return "\n".join(result_parts)
 
-
-async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
+async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> ToolMessage:
     """A tool for searching for an exact query in the code using Sourcebot"""
     try:
         async with SourcebotClient(base_url=SOURCEBOT_URL) as client:
@@ -79,7 +112,6 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
                 whole=True,  # Get complete file contents for better context
             )
 
-            import logging
             logging.info(f"Debug - Raw sourcebot response: {result}")  # Debug log
 
             # Convert sourcebot response format to expected format
@@ -111,45 +143,91 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
                     ]
                     converted_result["matches"] = filtered_matches
 
-                return format_sourcebot_results(converted_result)
+                formatted_text, structured_data = format_sourcebot_results(converted_result)
+                return ToolMessage(
+                    content=formatted_text,
+                    additional_kwargs=structured_data,
+                    tool_call_id="",  # Will be set by the framework
+                    name="ExactSearch"
+                )
             
-            return format_sourcebot_results({"matches": []})  # Return empty result if format doesn't match
+            formatted_text, structured_data = format_sourcebot_results({"matches": []})
+            return ToolMessage(
+                content=formatted_text,
+                additional_kwargs=structured_data,
+                tool_call_id="",
+                name="ExactSearch"
+            )
 
     except SourcebotApiError as e:
-        return f"Error: Sourcebot search failed - {str(e)}"
+        error_msg = f"Error: Sourcebot search failed - {str(e)}"
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={"error": str(e), "matches": []},
+            tool_call_id="",
+            name="ExactSearch"
+        )
     except Exception as e:
-        return f"Error performing exact search: {str(e)}"
+        error_msg = f"Error performing exact search: {str(e)}"
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={"error": str(e), "matches": []},
+            tool_call_id="",
+            name="ExactSearch"
+        )
 
 
 
-def format_search_results(snippets: List[Dict]) -> str:
-    """Format search results into a readable string"""
+def format_search_results(snippets: List[Dict]) -> Tuple[str, Dict[str, Any]]:
+    """Format search results into formatted text and structured data"""
     if not snippets:
-        return "No matching code found."
+        return "No matching code found.", {"matches": []}
 
     result_parts = []
+    structured_matches = []
+
     for snippet in snippets:
         # Format repository information
         repo_info = snippet["repo"]
         repo_url = f"{repo_info['url']}/blob/main/{snippet['file_path']}#L{snippet['line_from']}-L{snippet['line_to']}"
 
-        # Format the snippet header
+        # Get and decode content
+        raw_content = snippet["code"].strip()
+        decoded_content = decode_base64_content(raw_content)
+        
+        # Format the code with basic formatting
+        formatted_code = "\n".join("    " + line for line in decoded_content.split("\n")) if decoded_content else ""
+
+        # Create structured match data
+        structured_match = {
+            "file": snippet["file_path"],
+            "repository": repo_info["name"],
+            "github_url": repo_url,
+            "lines": {
+                "from": snippet["line_from"],
+                "to": snippet["line_to"]
+            },
+            "content": decoded_content,
+            "raw_content": raw_content
+        }
+        structured_matches.append(structured_match)
+
+        # Format text representation
         header = f"\nFile: {snippet['file_path']} (Lines {snippet['line_from']}-{snippet['line_to']})"
         header += f"\nRepository: {repo_info['name']}"
-        header += f"\nGitHub: {repo_url}\n"
+        header += f"\nGitHub: {repo_url}"
 
-        # Format the code with some basic formatting
-        code = snippet["code"].strip()
-        if code:
-            code = "\n".join("    " + line for line in code.split("\n"))
+        result_parts.append(f"{header}\n\n{formatted_code}\n{'='*80}")
 
-        # Combine all parts
-        result_parts.append(f"{header}\n{code}\n{'='*80}")
+    formatted_text = "\n".join(result_parts)
+    structured_data = {
+        "matches": structured_matches
+    }
+    
+    return formatted_text, structured_data
 
-    return "\n".join(result_parts)
 
-
-async def semantic_search(query: str, allowed_repos: Optional[List[str]]) -> str:
+async def semantic_search(query: str, allowed_repos: Optional[List[str]]) -> ToolMessage:
     """A tool for searching for a semantic query in the code"""
     try:
         async with httpx.AsyncClient(timeout=30.0) as client:
@@ -165,14 +243,38 @@ async def semantic_search(query: str, allowed_repos: Optional[List[str]]) -> str
                 )
 
             result = response.json()
-            return format_search_results(result["snippets"])
+            formatted_text, structured_data = format_search_results(result["snippets"])
+            return ToolMessage(
+                content=formatted_text,
+                additional_kwargs=structured_data,
+                tool_call_id="",  # Will be set by the framework
+                name="SemanticSearch"
+            )
 
     except httpx.TimeoutException:
-        return "Error: Search API request timed out. Please try again."
+        error_msg = "Error: Search API request timed out. Please try again."
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={"error": error_msg, "matches": []},
+            tool_call_id="",
+            name="SemanticSearch"
+        )
     except httpx.RequestError as e:
-        return f"Error: Could not connect to Search API ({str(e)})"
+        error_msg = f"Error: Could not connect to Search API ({str(e)})"
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={"error": str(e), "matches": []},
+            tool_call_id="",
+            name="SemanticSearch"
+        )
     except Exception as e:
-        return f"Error performing semantic search: {str(e)}"
+        error_msg = f"Error performing semantic search: {str(e)}"
+        return ToolMessage(
+            content=error_msg,
+            additional_kwargs={"error": str(e), "matches": []},
+            tool_call_id="",
+            name="SemanticSearch"
+        )
 
 
 # Creating a structured tool for searching for an exact query in the code

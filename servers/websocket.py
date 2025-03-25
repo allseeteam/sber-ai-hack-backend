@@ -95,9 +95,48 @@ async def conversation(websocket):
                                     ensure_ascii=False,
                                 )
                             )
+                    elif isinstance(message, ToolMessage):
+                        # Handle ToolMessage and its structured data
+                        logger.info(f"Processing ToolMessage for message ID: {user_message_json['id']}")
+                        
+                        # Get result type from the additional_kwargs
+                        result_type = message.additional_kwargs.get("result_type", "unknown")
+                        
+                        # Prepare result based on the result type
+                        result = None
+                        if result_type == "inspect":
+                            watched_type = message.additional_kwargs.get("watched_type")
+                            details = message.additional_kwargs.get("details", {})
+                            
+                            if watched_type == "directory":
+                                # For directories, return list of files
+                                result = [f["url"] for f in details.get("files", [])]
+                            else:
+                                # For files or errors, return the formatted content
+                                result = message.content
+                                
+                        elif result_type in ["search", "exact_search", "semantic_search"]:
+                            # For search results, return the formatted content
+                            result = message.content
+                        else:
+                            # For unknown types, return the raw content
+                            result = message.content
+                        
+                        response_data = {
+                            "id": user_message_json["id"],
+                            "result_type": result_type,
+                            "result": result
+                        }
+                        
+                        await websocket.send(
+                            json.dumps(
+                                response_data,
+                                ensure_ascii=False
+                            )
+                        )
                     else:
-                        # Если сообщение не AIMessage (например, ToolMessage),
-                        logger.debug(f"Skipping non-AIMessage of type: {type(message).__name__}")
+                        # Log other message types but don't process them
+                        logger.debug(f"Skipping message of type: {type(message).__name__}")
                         pass
             except Exception as e:
                 logger.exception(f"Error processing message: {e}")
