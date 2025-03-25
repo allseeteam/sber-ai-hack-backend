@@ -80,6 +80,8 @@ servers/              # Основной код серверов и агенто
 - langchain-core
 - mcp
 - websockets
+- vllm
+- sourcebot
 
 ## Инструкция по деплою
 
