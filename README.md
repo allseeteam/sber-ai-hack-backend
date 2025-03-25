@@ -2,6 +2,27 @@
 
 В данном репозитории содержится код бекенда для кейса "Агент Function Matcher", разработанный командой [AllSee.team](https://allSee.team).
 
+## Доступ к прототипу
+
+Воспользоватся прототипом можно через веб-интерфейс по адресу: [http://31.128.49.245/](http://31.128.49.245/)
+Также прототип доступен по websocket: [http://31.128.49.245/ws/](http://31.128.49.245/ws/)
+
+Данные необходимо передавать в следующем формате:
+    ```
+      {
+        "message": "Привет! Проанализируй мой код...",
+        "id": "1234",
+        "repositories": []
+      }
+    ```
+Ответ приходит в формате:
+    ```
+      {
+          "message": "Привет! Я могу помочь с анализом твоей кодовой базы...
+          "id": "1234"
+      }
+    ```
+
 ## Структура репозитория
 
 ```
@@ -54,7 +75,10 @@ servers/              # Основной код серверов и агенто
 
 ## Важные зависимости
 
-... 
+- langgraph
+- langchain-core
+- mcp
+- websockets
 
 ## Инструкция по деплою
 
@@ -67,14 +91,66 @@ servers/              # Основной код серверов и агенто
     cp .env.example .env
     ```
 
-2. Соберите и запустите контейнеры:
+3. Соберите и запустите контейнеры фронтенда из репозитария sber-ai-hack-frontend
+
+4. Соберите и запустите контейнеры:
     ```bash
     docker-compose --env-file .env up --build
     ```
 
 ### MCP вариант
 
-...
+Mcp сервер доступен в файле `servers/function_matcher.py`.
+Его возможно запустить любым удобным mcp клиентом, но предварительно также надо запустить контейнеры из файлa docker-compose (за исключением контейнеров nginx, websocket, frontend) и передать соответствующие переменные окружения.
+
+Пример кода на python:
+
+```
+from mcp import ClientSession, StdioServerParameters
+from mcp.client.stdio import stdio_client
+
+from pydantic import BaseModel
+
+
+class UserRequest(BaseModel):
+    message: str
+    id: str
+    repositories: list[str]
+
+
+# Create server parameters for stdio connection
+server_params = StdioServerParameters(
+    command="python",
+    args=["servers/function_matcher.py"],
+    env={}  # Сюда добавить переменные окружения.
+)
+
+
+async def run():
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            # Initialize the connection
+            await session.initialize()
+
+            result = await session.call_tool(
+                name="search_similar_code",
+                arguments={
+                  "request": UserRequest(
+                    id="1234", message="Hi!", repositories=[]
+                  )
+                },
+            )
+
+            return result
+
+
+if __name__ == "__main__":
+    import asyncio
+
+    asyncio.run(run())
+
+```
+
 
 ## Возможные конфигурации
 
