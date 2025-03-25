@@ -10,8 +10,8 @@ from langchain_core.runnables.config import RunnableConfig
 
 class InspectQuery(BaseModel):
     """Pydantic model for the code inspection query"""
-    repo_url: str = Field(description="Full GitHub repository URL (e.g., 'https://github.com/owner/repo')")
-    path: str = Field(description="Relative path within the repository (e.g., 'folder/file.txt')", default="")
+    repo_url: str = Field(description="Полная ссылка на репозиторий на Github (к примеру, 'https://github.com/владелец/название_репозитория')")
+    path: str = Field(description="Относительный путь внутри репозитория к папке или файлу (к примеру, 'папка/имя_файла.расширение_файла')", default="")
 
 
 async def get_github_content(repo_url: str, path: str = "") -> Union[str, List[Dict], None]:
@@ -167,8 +167,9 @@ inspect_tool = StructuredTool.from_function(
     coroutine=inspect_code,
     name="InspectCode",
     description=(
-        "Инспекция кода или содержимого директории в GitHub репозиториях. "
-        "Может находить похожие фрагменты кода на основе описания на естественном языке."
+"""
+Просмотр содержимого файлов или папок в репозиториях на GitHub.
+"""
     ),
     args_schema=InspectQuery,
 )

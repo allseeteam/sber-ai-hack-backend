@@ -8,25 +8,25 @@ from settings import settings
 from sourcebot.sourcebot_client import SourcebotClient, SourcebotApiError
 
 # Configure API URLs with default values
-SEARCH_API_URL = getattr(settings, "SEARCH_API_URL", "http://localhost:8000")
-SOURCEBOT_URL = getattr(settings, "SOURCEBOT_URL", "http://localhost:3000")
+SEARCH_API_URL = settings.code_search.SEARCH_API_URL
+SOURCEBOT_URL = settings.code_search.SOURCEBOT_URL
 
 
 class ExactSearchQuery(BaseModel):
     """Pydantic model for the exact search query"""
 
-    query: str = Field(description="Query to search in the code")
+    query: str = Field(description="Поисковый запрос для поиска по кодовой базе")
     allowed_repos: Optional[List[str]] = Field(
-        description="List of allowed repositories to search in", default=None
+        description="Список репозиториев, по которым ведется поиск. Пустой список ('[]') будет означать поиск без ограничений.", default=[]
     )
 
 
 class SemanticSearchQuery(BaseModel):
     """Pydantic model for the semantic search query"""
 
-    query: str = Field(description="Query to search in the code")
+    query: str = Field(description="Поисковый запрос для векторного поиска по кодовой базе")
     allowed_repos: Optional[List[str]] = Field(
-        description="List of allowed repositories to search in", default=None
+        description="Список репозиториев, по которым ведется поиск. Пустой список ('[]') будет означать поиск без ограничений.", default=[]
     )
 
 
@@ -79,21 +79,47 @@ async def exact_search(query: str, allowed_repos: Optional[List[str]]) -> str:
                 whole=True,  # Get complete file contents for better context
             )
 
-            # If allowed_repos is specified, filter the results
-            if allowed_repos:
-                filtered_matches = [
-                    match
-                    for match in result.get("matches", [])
-                    if match["repository"] in allowed_repos
-                ]
-                result["matches"] = filtered_matches
+            import logging
+            logging.info(f"Debug - Raw sourcebot response: {result}")  # Debug log
 
-            return format_sourcebot_results(result)
+            # Convert sourcebot response format to expected format
+            if "Result" in result and "Files" in result["Result"]:
+                converted_result = {
+                    "matches": [
+                        {
+                            "repository": file["Repository"],
+                            "filePath": file["FileName"],
+                            "content": "".join(match["Content"] for match in file.get("ChunkMatches", [])),
+                            "lines": {
+                                "from": min(match["ContentStart"]["LineNumber"] for match in file.get("ChunkMatches", [])),
+                                "to": max(
+                                    max(r["End"]["LineNumber"] for r in match.get("Ranges", []))
+                                    for match in file.get("ChunkMatches", [])
+                                ) if any(file.get("ChunkMatches", [])) else 0
+                            } if file.get("ChunkMatches") else None
+                        }
+                        for file in result["Result"]["Files"]
+                    ]
+                }
+                
+                # If allowed_repos is specified, filter the results
+                if allowed_repos:
+                    filtered_matches = [
+                        match
+                        for match in converted_result.get("matches", [])
+                        if match["repository"] in allowed_repos
+                    ]
+                    converted_result["matches"] = filtered_matches
+
+                return format_sourcebot_results(converted_result)
+            
+            return format_sourcebot_results({"matches": []})  # Return empty result if format doesn't match
 
     except SourcebotApiError as e:
         return f"Error: Sourcebot search failed - {str(e)}"
     except Exception as e:
         return f"Error performing exact search: {str(e)}"
+
 
 
 def format_search_results(snippets: List[Dict]) -> str:
@@ -227,8 +253,9 @@ semantic_search_tool = StructuredTool.from_function(
     coroutine=semantic_search,
     name="SemanticSearch",
     description=(
-        "Поиск семантического запроса в коде. "
-        "Может находить более эффективные реализации микросервисов."
+"""
+Поиск по смыслу (векторный) по кодовой базе выбанных репозиториев.
+"""
     ),
     args_schema=SemanticSearchQuery,
 )
