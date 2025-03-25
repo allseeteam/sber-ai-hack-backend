@@ -5,23 +5,24 @@
 ## Доступ к прототипу
 
 Воспользоватся прототипом можно через веб-интерфейс по адресу: [http://31.128.49.245/](http://31.128.49.245/)
+
 Также прототип доступен по websocket: [http://31.128.49.245/ws/](http://31.128.49.245/ws/)
 
 Данные необходимо передавать в следующем формате:
-    ```
-      {
-        "message": "Привет! Проанализируй мой код...",
-        "id": "1234",
-        "repositories": []
-      }
-    ```
+```
+  {
+    "message": "Привет! Проанализируй мой код...",
+    "id": "1234",
+    "repositories": []
+  }
+```
 Ответ приходит в формате:
-    ```
-      {
-          "message": "Привет! Я могу помочь с анализом твоей кодовой базы...
-          "id": "1234"
-      }
-    ```
+```
+  {
+      "message": "Привет! Я могу помочь с анализом твоей кодовой базы...
+      "id": "1234"
+  }
+```
 
 ## Структура репозитория
 
@@ -91,7 +92,7 @@ servers/              # Основной код серверов и агенто
     cp .env.example .env
     ```
 
-3. Соберите и запустите контейнеры фронтенда из репозитария sber-ai-hack-frontend
+3. Соберите и запустите контейнеры фронтенда из репозитария [sber-ai-hack-frontend](https://github.com/allseeteam/sber-ai-hack-frontend)
 
 4. Соберите и запустите контейнеры:
     ```bash
@@ -107,6 +108,7 @@ Mcp сервер доступен в файле `servers/function_matcher.py`.
 
 ```
 from mcp import ClientSession, StdioServerParameters
+from mcp.server.fastmcp import Context
 from mcp.client.stdio import stdio_client
 
 from pydantic import BaseModel
@@ -118,7 +120,7 @@ class UserRequest(BaseModel):
     repositories: list[str]
 
 
-# Create server parameters for stdio connection
+# Параметры подключения к серверу.
 server_params = StdioServerParameters(
     command="python",
     args=["servers/function_matcher.py"],
@@ -132,12 +134,14 @@ async def run():
             # Initialize the connection
             await session.initialize()
 
+            ctx = Context()
             result = await session.call_tool(
                 name="search_similar_code",
                 arguments={
                   "request": UserRequest(
                     id="1234", message="Hi!", repositories=[]
-                  )
+                  ),
+                  "ctx": ctx,
                 },
             )
 
